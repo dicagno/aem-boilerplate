@@ -8,20 +8,21 @@ main .hero-container {
   padding: 0;
 }
   
-main .hero {
+main block-hero {
+  border: 2px solid red;
   position: relative;
   padding: 32px;
   min-height: 300px;
 }
 
-main .hero h1 {
+main block-hero h1 {
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
   color: white;
 }
 
-main .hero picture {
+main block-hero picture {
   position: absolute;
   z-index: -1;
   top: 0;
@@ -32,7 +33,7 @@ main .hero picture {
   box-sizing: border-box;
 }
 
-main .hero img {
+main block-hero img {
   object-fit: cover;
   width: 100%;
   height: 100%;

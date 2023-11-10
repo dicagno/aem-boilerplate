@@ -27,12 +27,12 @@ function sampleRUM(checkpoint, data = {}) {
     sampleRUM[fnname] = sampleRUM[fnname] || ((...args) => sampleRUM.defer.push({ fnname, args }));
   };
   sampleRUM.drain = sampleRUM.drain
-    || ((dfnname, fn) => {
-      sampleRUM[dfnname] = fn;
-      sampleRUM.defer
-        .filter(({ fnname }) => dfnname === fnname)
-        .forEach(({ fnname, args }) => sampleRUM[fnname](...args));
-    });
+        || ((dfnname, fn) => {
+          sampleRUM[dfnname] = fn;
+          sampleRUM.defer
+            .filter(({ fnname }) => dfnname === fnname)
+            .forEach(({ fnname, args }) => sampleRUM[fnname](...args));
+        });
   sampleRUM.always = sampleRUM.always || [];
   sampleRUM.always.on = (chkpnt, fn) => {
     sampleRUM.always[chkpnt] = fn;
@@ -199,6 +199,7 @@ function toCamelCase(name) {
 // eslint-disable-next-line import/prefer-default-export
 function readBlockConfig(block) {
   const config = {};
+  if (!block.querySelectorAll) return config;
   block.querySelectorAll(':scope > div').forEach((row) => {
     if (row.children) {
       const cols = [...row.children];
@@ -372,18 +373,18 @@ function decorateButtons(element) {
         }
         if (
           up.childNodes.length === 1
-          && up.tagName === 'STRONG'
-          && twoup.childNodes.length === 1
-          && twoup.tagName === 'P'
+                    && up.tagName === 'STRONG'
+                    && twoup.childNodes.length === 1
+                    && twoup.tagName === 'P'
         ) {
           a.className = 'button primary';
           twoup.classList.add('button-container');
         }
         if (
           up.childNodes.length === 1
-          && up.tagName === 'EM'
-          && twoup.childNodes.length === 1
-          && twoup.tagName === 'P'
+                    && up.tagName === 'EM'
+                    && twoup.childNodes.length === 1
+                    && twoup.tagName === 'P'
         ) {
           a.className = 'button secondary';
           twoup.classList.add('button-container');
@@ -552,6 +553,34 @@ function buildBlock(blockName, content) {
   return blockEl;
 }
 
+async function registerComponent(url, blockName, block, classList) {
+  const createBlockClass = (await import(url)).default;
+  customElements.define(`block-${blockName}`, createBlockClass(blockName, block.innerHTML, classList));
+  block.outerHTML = `<block-${blockName} status="${block.getAttribute('data-block-status')}"></block-${blockName}>`;
+}
+
+/**
+ * Register block as a custom DOM element (web component).
+ * @param {Element} block The block element
+ */
+async function registerBlockComponent(blockName, block) {
+  const classList = [...block.classList].filter((className) => (className !== 'block' && className !== blockName)) || [];
+  try {
+    await registerComponent(`${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.js`, blockName, block, classList);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn(`couldn't load block-specific js for ${blockName}, falling back to generic block definition`, e);
+    try {
+      await registerComponent(`${window.hlx.codeBasePath}/scripts/generic-block.js`, blockName, block, classList);
+    } catch (ee) {
+      // eslint-disable-next-line no-console
+      console.error(`couldn't load block JS definition for ${blockName}`, ee);
+    }
+  }
+  block.className = '';
+  block.classList.add(...classList);
+}
+
 /**
  * Loads JS and CSS for a block.
  * @param {Element} block The block element
@@ -565,17 +594,7 @@ async function loadBlock(block) {
       const cssLoaded = loadCSS(`${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.css`);
       const decorationComplete = new Promise((resolve) => {
         (async () => {
-          try {
-            const mod = await import(
-              `${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.js`
-            );
-            if (mod.default) {
-              await mod.default(block);
-            }
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.log(`failed to load module for ${blockName}`, error);
-          }
+          await registerBlockComponent(blockName, block);
           resolve();
         })();
       });
