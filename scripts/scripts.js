@@ -11,6 +11,7 @@ import {
   waitForLCP,
   loadBlocks,
   loadCSS,
+  registerStandardComponents,
 } from './aem.js';
 
 const LCP_BLOCKS = []; // add your LCP blocks to the list
@@ -24,7 +25,7 @@ function buildHeroBlock(main) {
   const picture = main.querySelector('picture');
   // eslint-disable-next-line no-bitwise
   if (h1 && picture && (h1.compareDocumentPosition(picture) & Node.DOCUMENT_POSITION_PRECEDING)) {
-    const section = document.createElement('div');
+    const section = document.createElement('section');
     section.append(buildBlock('hero', { elems: [picture, h1] }));
     main.prepend(section);
   }
@@ -65,7 +66,7 @@ export function decorateMain(main) {
   decorateButtons(main);
   decorateIcons(main);
   buildAutoBlocks(main);
-  decorateSections(main);
+  decorateSections(main); // comes before blocks
   decorateBlocks(main);
 }
 
@@ -75,6 +76,7 @@ export function decorateMain(main) {
  */
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  registerStandardComponents();
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {

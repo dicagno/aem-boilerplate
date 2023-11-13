@@ -12,6 +12,8 @@
 
 /* eslint-env browser */
 
+import { StandardElementDefs } from './components.js';
+
 /**
  * log RUM if part of the sample.
  * @param {string} checkpoint identifies the checkpoint in funnel
@@ -403,11 +405,11 @@ function decorateIcon(span, prefix = '') {
   const iconName = Array.from(span.classList)
     .find((c) => c.startsWith('icon-'))
     .substring(5);
-  const img = document.createElement('img');
-  img.dataset.iconName = iconName;
-  img.src = `${window.hlx.codeBasePath}${prefix}/icons/${iconName}.svg`;
-  img.loading = 'lazy';
-  span.append(img);
+  const icon = document.createElement('icon');
+  icon.innerHTML = iconName;
+  icon.src = `${window.hlx.codeBasePath}${prefix}/icons/${iconName}.svg`;
+  icon.loading = 'lazy';
+  span.append(icon);
 }
 
 /**
@@ -432,17 +434,20 @@ function decorateSections(main) {
     let defaultContent = false;
     [...section.children].forEach((e) => {
       if (e.tagName === 'DIV' || !defaultContent) {
-        const wrapper = document.createElement('div');
+        const wrapper = document.createElement('wrapper-brick');
         wrappers.push(wrapper);
         defaultContent = e.tagName !== 'DIV';
-        if (defaultContent) wrapper.classList.add('default-content-wrapper');
+        if (defaultContent) wrapper.setAttribute('content', 'default');
       }
       wrappers[wrappers.length - 1].append(e);
     });
     wrappers.forEach((wrapper) => section.append(wrapper));
-    section.classList.add('section');
-    section.dataset.sectionStatus = 'initialized';
-    section.style.display = 'none';
+
+    const newSection = document.createElement('section');
+    newSection.innerHTML = section.innerHTML;
+    newSection.setAttribute('status', 'initialized');
+    newSection.style.display = 'none';
+    section.replaceWith(newSection);
 
     // Process section metadata
     const sectionMeta = section.querySelector('div.section-metadata');
@@ -503,19 +508,19 @@ async function fetchPlaceholders(prefix = 'default') {
  * @param {Element} main The container element
  */
 function updateSectionsStatus(main) {
-  const sections = [...main.querySelectorAll(':scope > div.section')];
+  const sections = [...main.querySelectorAll(':scope > section')];
   for (let i = 0; i < sections.length; i += 1) {
     const section = sections[i];
-    const status = section.dataset.sectionStatus;
+    const status = section.getAttribute('status');
     if (status !== 'loaded') {
       const loadingBlock = section.querySelector(
-        '.block[data-block-status="initialized"], .block[data-block-status="loading"]',
+        '*:has([brick][status="initialized"]), *:has([brick][status="loading"])',
       );
       if (loadingBlock) {
-        section.dataset.sectionStatus = 'loading';
+        section.setAttribute('status', 'loading');
         break;
       } else {
-        section.dataset.sectionStatus = 'loaded';
+        section.setAttribute('status', 'loaded');
         section.style.display = null;
       }
     }
@@ -533,9 +538,9 @@ function buildBlock(blockName, content) {
   // build image block nested div structure
   blockEl.classList.add(blockName);
   table.forEach((row) => {
-    const rowEl = document.createElement('div');
+    const rowEl = document.createElement('row-brick');
     row.forEach((col) => {
-      const colEl = document.createElement('div');
+      const colEl = document.createElement('column-brick');
       const vals = col.elems ? col.elems : [col];
       vals.forEach((val) => {
         if (val) {
@@ -553,10 +558,25 @@ function buildBlock(blockName, content) {
   return blockEl;
 }
 
-async function registerComponent(url, blockName, block, classList) {
-  const createBlockClass = (await import(url)).default;
-  customElements.define(`block-${blockName}`, createBlockClass(blockName, block.innerHTML, classList));
-  block.outerHTML = `<block-${blockName} status="${block.getAttribute('data-block-status')}"></block-${blockName}>`;
+function registerStandardComponents() {
+  // eslint-disable-next-line no-restricted-syntax
+  for (const elementKey in StandardElementDefs) {
+    if (!customElements.get(`${elementKey}-brick`)) {
+      customElements.define(`${elementKey}-brick`, StandardElementDefs[elementKey]);
+    }
+  }
+}
+
+/**
+ * Register block as a custom DOM element (web component).
+ * @param {String} url The block element
+ * @param {String} blockName The block element
+ */
+async function registerComponent(url, blockName) {
+  const BlockDefClass = (await import(url)).default();
+  if (!customElements.get(`block-${blockName}`)) {
+    customElements.define(`block-${blockName}`, BlockDefClass);
+  }
 }
 
 /**
@@ -564,21 +584,32 @@ async function registerComponent(url, blockName, block, classList) {
  * @param {Element} block The block element
  */
 async function registerBlockComponent(blockName, block) {
-  const classList = [...block.classList].filter((className) => (className !== 'block' && className !== blockName)) || [];
+  // eslint-disable-next-line no-console
+  console.log('registerBlockComponent', blockName, block);
   try {
-    await registerComponent(`${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.js`, blockName, block, classList);
+    await registerComponent(`${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.js`, blockName);
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn(`couldn't load block-specific js for ${blockName}, falling back to generic block definition`, e);
     try {
-      await registerComponent(`${window.hlx.codeBasePath}/scripts/generic-block.js`, blockName, block, classList);
+      await registerComponent(`${window.hlx.codeBasePath}/blocks/generic/generic.js`, blockName);
     } catch (ee) {
       // eslint-disable-next-line no-console
       console.error(`couldn't load block JS definition for ${blockName}`, ee);
     }
   }
-  block.className = '';
-  block.classList.add(...classList);
+}
+
+/**
+ * Gets block name from the block element
+ * @param {Element} block The block element
+ */
+function getBlockMetadata(block) {
+  const t = block.tagName.toLowerCase();
+  const blockName = t.startsWith('block-') ? t.replace(/^block-/g, '') : null;
+  return {
+    blockName,
+  };
 }
 
 /**
@@ -586,10 +617,10 @@ async function registerBlockComponent(blockName, block) {
  * @param {Element} block The block element
  */
 async function loadBlock(block) {
-  const status = block.dataset.blockStatus;
+  const status = block.getAttribute('status');
   if (status !== 'loading' && status !== 'loaded') {
-    block.dataset.blockStatus = 'loading';
-    const { blockName } = block.dataset;
+    block.setAttribute('status', 'loading');
+    const { blockName } = getBlockMetadata(block);
     try {
       const cssLoaded = loadCSS(`${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.css`);
       const decorationComplete = new Promise((resolve) => {
@@ -603,7 +634,7 @@ async function loadBlock(block) {
       // eslint-disable-next-line no-console
       console.log(`failed to load block ${blockName}`, error);
     }
-    block.dataset.blockStatus = 'loaded';
+    block.setAttribute('status', 'loaded');
   }
   return block;
 }
@@ -614,7 +645,7 @@ async function loadBlock(block) {
  */
 async function loadBlocks(main) {
   updateSectionsStatus(main);
-  const blocks = [...main.querySelectorAll('div.block')];
+  const blocks = [...main.querySelectorAll('[brick]')];
   for (let i = 0; i < blocks.length; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await loadBlock(blocks[i]);
@@ -623,19 +654,45 @@ async function loadBlocks(main) {
 }
 
 /**
- * Decorates a block.
+ * Builds a brick from metadata and innerHTML.
+ * @param {String} name The inner HTML contents
+ * @param {String} innerHTML The inner HTML contents
+ * @param {DOMStringMap} dataset Set of custom attributes
+ * @param {String[]} classes Applied CSS classes
+ */
+function buildBrick(name, innerHTML, dataset, classes) {
+  const excludedAttrs = ['name'];
+  const excludedClasses = ['block', name];
+
+  const brick = document.createElement(`${name}-brick`);
+  brick.innerHTML = innerHTML;
+  brick.setAttribute('brick', '');
+  const filteredClasses = classes.filter((cls) => !excludedClasses.includes(cls));
+  if (filteredClasses.length > 0) brick.className = filteredClasses.join(' ');
+  // eslint-disable-next-line no-restricted-syntax,guard-for-in
+  for (const attrKey in dataset) {
+    const attrName = attrKey.replace(/^block/g, '');
+    // eslint-disable-next-line no-continue
+    if (!excludedAttrs.includes(attrName)) {
+      brick.setAttribute(attrName, dataset[attrKey]);
+    }
+  }
+  return brick;
+}
+
+/**
+ * Translates a block.
  * @param {Element} block The block element
  */
-function decorateBlock(block) {
-  const shortBlockName = block.classList[0];
-  if (shortBlockName) {
-    block.classList.add('block');
-    block.dataset.blockName = shortBlockName;
-    block.dataset.blockStatus = 'initialized';
-    const blockWrapper = block.parentElement;
-    blockWrapper.classList.add(`${shortBlockName}-wrapper`);
-    const section = block.closest('.section');
-    if (section) section.classList.add(`${shortBlockName}-container`);
+function translateBlock(block) {
+  const blockName = block.classList[0];
+  if (blockName) {
+    const { dataset, classList, innerHTML } = block;
+    classList.add('block');
+    dataset.blockName = blockName;
+    dataset.blockStatus = 'initialized';
+    const brick = buildBrick(blockName, innerHTML, dataset, [...classList]);
+    block.replaceWith(brick);
   }
 }
 
@@ -644,7 +701,7 @@ function decorateBlock(block) {
  * @param {Element} main The container element
  */
 function decorateBlocks(main) {
-  main.querySelectorAll('div.section > div > div').forEach(decorateBlock);
+  main.querySelectorAll('section > wrapper-brick > div').forEach(translateBlock);
 }
 
 /**
@@ -655,7 +712,7 @@ function decorateBlocks(main) {
 async function loadHeader(header) {
   const headerBlock = buildBlock('header', '');
   header.append(headerBlock);
-  decorateBlock(headerBlock);
+  translateBlock(headerBlock);
   return loadBlock(headerBlock);
 }
 
@@ -667,7 +724,7 @@ async function loadHeader(header) {
 async function loadFooter(footer) {
   const footerBlock = buildBlock('footer', '');
   footer.append(footerBlock);
-  decorateBlock(footerBlock);
+  translateBlock(footerBlock);
   return loadBlock(footerBlock);
 }
 
@@ -676,8 +733,8 @@ async function loadFooter(footer) {
  * @param {Array} lcpBlocks Array of blocks
  */
 async function waitForLCP(lcpBlocks) {
-  const block = document.querySelector('.block');
-  const hasLCPBlock = block && lcpBlocks.includes(block.dataset.blockName);
+  const block = document.querySelector('[brick]');
+  const hasLCPBlock = block && lcpBlocks.includes(getBlockMetadata(block).blockName);
   if (hasLCPBlock) await loadBlock(block);
 
   document.body.style.display = null;
@@ -699,7 +756,6 @@ init();
 export {
   buildBlock,
   createOptimizedPicture,
-  decorateBlock,
   decorateBlocks,
   decorateButtons,
   decorateIcons,
@@ -714,6 +770,7 @@ export {
   loadHeader,
   loadScript,
   readBlockConfig,
+  registerStandardComponents,
   sampleRUM,
   setup,
   toCamelCase,
