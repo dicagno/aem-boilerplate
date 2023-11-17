@@ -30,8 +30,16 @@ This project explores the usage of Web Components as "first-class citizens" in E
 In summary, with the following project, our team is delivering a POC of the envisioned approach, refactoring the boilerplate and without altering the authoring experience, but proposing a new, flawless developer experience. From the customer's perspective, as said, our aim is to keep LHS 100, considering performance as the main factor (and acceptance criteria) for this approach to succeed.
 
 ## Environments
-- Preview: https://aem-bricks-preview.albertodicagno.com/
+
+### Preview
+
+- Website: https://aem-bricks-preview.albertodicagno.com/
+- API: https://aem-bricks-preview.albertodicagno.com/api/v1
+
+### Live
+
 - Live: https://aem-bricks.albertodicagno.com/
+- API: https://aem-bricks.albertodicagno.com/api/v1
 
 ## Installation
 
@@ -50,5 +58,6 @@ npm run lint
 1. Create a new repository based on the `aem-boilerplate` template and add a mountpoint in the `fstab.yaml`
 1. Add the [AEM Code Sync GitHub App](https://github.com/apps/aem-code-sync) to the repository
 1. Install the [AEM CLI](https://github.com/adobe/aem-cli): `npm install -g @adobe/aem-cli`
+1. Deploy API worker on Cloudflare: `npm run worker:deploy`
 1. Start AEM Proxy: `npm start` (opens your browser at `http://localhost:3000`)
 1. Open the `{repo}` directory in your favorite IDE and start coding :)
