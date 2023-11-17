@@ -1,0 +1,10 @@
+name = "gw-winter23-aem-bricks-payment-api"
+main = "src/index.js"
+compatibility_date = "2023-10-30"
+account_id = "976cf63aa976cd0e681ddbcf6fb8dee2" # albertodicagno@gmail.com
+
+[vars]
+BRAINTREE_ENDPOINT = "https://payments.sandbox.braintree-api.com/graphql"
+BRAINTREE_MERCHANT_ID = "yt8kx3r44r78z78r"
+BRAINTREE_PUBLIC_KEY = "kdm3bbnzxsvdhsp5"
+BRAINTREE_VERSION = "2023-11-17"
