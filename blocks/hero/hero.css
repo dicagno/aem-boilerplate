@@ -3,26 +3,26 @@
 main .hero-container > div {
   max-width: unset;
 }
-  
+
 main .hero-container {
   padding: 0;
 }
-  
-main block-hero {
+
+main .hero {
   border: 2px solid red;
   position: relative;
   padding: 32px;
   min-height: 300px;
 }
 
-main block-hero h1 {
+main .hero h1 {
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
   color: white;
 }
 
-main block-hero picture {
+main .hero picture {
   position: absolute;
   z-index: -1;
   top: 0;
@@ -33,7 +33,7 @@ main block-hero picture {
   box-sizing: border-box;
 }
 
-main block-hero img {
+main .hero img {
   object-fit: cover;
   width: 100%;
   height: 100%;
