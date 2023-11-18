@@ -450,7 +450,7 @@ function decorateSections(main) {
     section.replaceWith(newSection);
 
     // Process section metadata
-    const sectionMeta = section.querySelector('div.section-metadata');
+    const sectionMeta = section.querySelector('section-metadata-brick');
     if (sectionMeta) {
       const meta = readBlockConfig(sectionMeta);
       Object.keys(meta).forEach((key) => {
@@ -574,13 +574,14 @@ function registerStandardComponents() {
  */
 async function registerComponent(url, blockName) {
   const BlockDefClass = (await import(url)).default();
-  if (!customElements.get(`block-${blockName}`)) {
-    customElements.define(`block-${blockName}`, BlockDefClass);
+  if (!customElements.get(`${blockName}-brick`)) {
+    customElements.define(`${blockName}-brick`, BlockDefClass);
   }
 }
 
 /**
  * Register block as a custom DOM element (web component).
+ * @param {String} blockName name
  * @param {Element} block The block element
  */
 async function registerBlockComponent(blockName, block) {
@@ -590,12 +591,12 @@ async function registerBlockComponent(blockName, block) {
     await registerComponent(`${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.js`, blockName);
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn(`couldn't load block-specific js for ${blockName}, falling back to generic block definition`, e);
+    console.warn(`couldn't load brick-specific js for ${blockName}, falling back to generic brick definition`, e);
     try {
       await registerComponent(`${window.hlx.codeBasePath}/blocks/generic/generic.js`, blockName);
     } catch (ee) {
       // eslint-disable-next-line no-console
-      console.error(`couldn't load block JS definition for ${blockName}`, ee);
+      console.error(`couldn't load brick JS definition for ${blockName}`, ee);
     }
   }
 }
@@ -606,7 +607,7 @@ async function registerBlockComponent(blockName, block) {
  */
 function getBlockMetadata(block) {
   const t = block.tagName.toLowerCase();
-  const blockName = t.startsWith('block-') ? t.replace(/^block-/g, '') : null;
+  const blockName = t.endsWith('-brick') ? t.replace(/-brick$/g, '') : null;
   return {
     blockName,
   };
@@ -666,7 +667,6 @@ function buildBrick(name, innerHTML, dataset, classes) {
 
   const brick = document.createElement(`${name}-brick`);
   brick.innerHTML = innerHTML;
-  brick.setAttribute('brick', '');
   const filteredClasses = classes.filter((cls) => !excludedClasses.includes(cls));
   if (filteredClasses.length > 0) brick.className = filteredClasses.join(' ');
   // eslint-disable-next-line no-restricted-syntax,guard-for-in
@@ -677,6 +677,7 @@ function buildBrick(name, innerHTML, dataset, classes) {
       brick.setAttribute(attrName, dataset[attrKey]);
     }
   }
+  brick.setAttribute('brick', '');
   return brick;
 }
 
@@ -687,13 +688,18 @@ function buildBrick(name, innerHTML, dataset, classes) {
 function translateBlock(block) {
   const blockName = block.classList[0];
   if (blockName) {
+    console.log('in_block', block);
     const { dataset, classList, innerHTML } = block;
     classList.add('block');
     dataset.blockName = blockName;
     dataset.blockStatus = 'initialized';
+
     const brick = buildBrick(blockName, innerHTML, dataset, [...classList]);
+    console.log('out_brick', brick);
     block.replaceWith(brick);
+    return brick;
   }
+  return null;
 }
 
 /**
@@ -712,8 +718,9 @@ function decorateBlocks(main) {
 async function loadHeader(header) {
   const headerBlock = buildBlock('header', '');
   header.append(headerBlock);
-  translateBlock(headerBlock);
-  return loadBlock(headerBlock);
+  const headerBrick = translateBlock(headerBlock);
+  headerBlock.replaceWith(headerBrick);
+  return loadBlock(headerBrick);
 }
 
 /**
@@ -724,8 +731,9 @@ async function loadHeader(header) {
 async function loadFooter(footer) {
   const footerBlock = buildBlock('footer', '');
   footer.append(footerBlock);
-  translateBlock(footerBlock);
-  return loadBlock(footerBlock);
+  const footerBrick = translateBlock(footerBlock);
+  footerBlock.replaceWith(footerBrick);
+  return loadBlock(footerBrick);
 }
 
 /**

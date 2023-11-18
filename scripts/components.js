@@ -5,6 +5,7 @@ export function preRender($this) {
 }
 
 export function removeUnusedAttributes($this, name) {
+  const skippedAttrs = ['brick'];
   if (name) {
     if (name === 'class') {
       if ($this.className === '') $this.removeAttribute('class');
@@ -14,7 +15,7 @@ export function removeUnusedAttributes($this, name) {
   } else {
     // eslint-disable-next-line no-restricted-syntax
     for (const attrName of $this.getAttributeNames()) {
-      if ($this.getAttribute(attrName) === '') $this.removeAttribute(attrName);
+      if (!skippedAttrs.includes(attrName) && $this.getAttribute(attrName) === '') $this.removeAttribute(attrName);
     }
   }
 }
@@ -101,10 +102,22 @@ class Wrapper extends SubBlock {
   }
 }
 
+class SectionMetadata extends HTMLElement {
+  // eslint-disable-next-line no-useless-constructor
+  constructor() {
+    super();
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  render() {
+  }
+}
+
 export const StandardElementDefs = {
   row: Row,
   column: Column,
   wrapper: Wrapper,
+  'section-metadata': SectionMetadata,
 };
 
 class ContentWrapperComponent extends HTMLElement {
