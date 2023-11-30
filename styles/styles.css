@@ -249,3 +249,11 @@ main .section {
 main .section.highlight {
   background-color: var(--highlight-background-color);
 }
+
+section-metadata-brick {
+  display: none;
+}
+
+[block-name] {
+border: 2px solid black;
+}

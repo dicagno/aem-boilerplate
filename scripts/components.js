@@ -5,7 +5,7 @@ export function preRender($this) {
 }
 
 export function removeUnusedAttributes($this, name) {
-  const skippedAttrs = ['brick'];
+  const skippedAttrs = ['block-name'];
   if (name) {
     if (name === 'class') {
       if ($this.className === '') $this.removeAttribute('class');
@@ -40,6 +40,8 @@ class SubBlock extends HTMLElement {
     super();
     init(this);
     this.allowedParents = [/-brick$/g];
+    const slot = document.createElement('slot');
+    this.shadowRoot.appendChild(slot);
   }
 
   connectedCallback() {
@@ -54,7 +56,7 @@ class SubBlock extends HTMLElement {
     // eslint-disable-next-line no-console
     console.log('content', content);
     // Manipulate shadow root's innerHTML
-    this.shadowRoot.innerHTML = `<div>${content}</div>`;
+    this.shadowRoot.innerHTML = `${content}`;
   }
 
   checkParent() {
@@ -69,10 +71,10 @@ class SubBlock extends HTMLElement {
       // eslint-disable-next-line no-console
       if (!this.parentElement) {
         // eslint-disable-next-line no-console
-        console.error('no ancestor found');
+        console.warn('no ancestor found');
       } else {
         // eslint-disable-next-line no-console
-        console.error(`${this.tagName} has a wrong ancestor: ${this.parentElement.tagName}, allowed: ${this.allowedParents.map((e) => e.toString()).join(',')}`);
+        console.warn(`${this.tagName} has a wrong ancestor: ${this.parentElement.tagName}, allowed: ${this.allowedParents.map((e) => e.toString()).join(',')}`);
       }
     }
   }

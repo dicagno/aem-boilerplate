@@ -1,6 +1,8 @@
 import {
   sampleRUM,
   buildBlock,
+  // eslint-disable-next-line no-unused-vars
+  buildBrick,
   loadHeader,
   loadFooter,
   decorateButtons,
@@ -26,7 +28,8 @@ function buildHeroBlock(main) {
   // eslint-disable-next-line no-bitwise
   if (h1 && picture && (h1.compareDocumentPosition(picture) & Node.DOCUMENT_POSITION_PRECEDING)) {
     const section = document.createElement('section');
-    section.append(buildBlock('hero', { elems: [picture, h1] }));
+    const block = buildBlock('hero', { elems: [picture, h1] });
+    section.append(block);
     main.prepend(section);
   }
 }
@@ -62,6 +65,7 @@ function buildAutoBlocks(main) {
  */
 // eslint-disable-next-line import/prefer-default-export
 export function decorateMain(main) {
+  registerStandardComponents();
   // hopefully forward compatible button decoration
   decorateButtons(main);
   decorateIcons(main);
@@ -76,7 +80,6 @@ export function decorateMain(main) {
  */
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
-  registerStandardComponents();
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {
@@ -114,7 +117,7 @@ async function loadLazy(doc) {
   loadFonts();
 
   sampleRUM('lazy');
-  sampleRUM.observe(main.querySelectorAll('[brick]'));
+  sampleRUM.observe(main.querySelectorAll('[block-name]'));
   sampleRUM.observe(main.querySelectorAll('picture > img'));
 }
 

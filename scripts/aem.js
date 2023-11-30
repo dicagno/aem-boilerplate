@@ -435,9 +435,10 @@ function decorateSections(main) {
     [...section.children].forEach((e) => {
       if (e.tagName === 'DIV' || !defaultContent) {
         const wrapper = document.createElement('wrapper-brick');
+        wrapper.setAttribute('block-name', 'wrapper');
         wrappers.push(wrapper);
         defaultContent = e.tagName !== 'DIV';
-        if (defaultContent) wrapper.setAttribute('content', 'default');
+        if (defaultContent) wrapper.setAttribute('type', 'default-content');
       }
       wrappers[wrappers.length - 1].append(e);
     });
@@ -461,7 +462,7 @@ function decorateSections(main) {
           section.dataset[toCamelCase(key)] = meta[key];
         }
       });
-      sectionMeta.parentNode.remove();
+      sectionMeta.remove(); // .parentNode.remove
     }
   });
 }
@@ -514,7 +515,7 @@ function updateSectionsStatus(main) {
     const status = section.getAttribute('status');
     if (status !== 'loaded') {
       const loadingBlock = section.querySelector(
-        '*:has([brick][status="initialized"]), *:has([brick][status="loading"])',
+        '*:has([block-name][status="initialized"]), *:has([block-name][status="loading"])',
       );
       if (loadingBlock) {
         section.setAttribute('status', 'loading');
@@ -537,10 +538,16 @@ function buildBlock(blockName, content) {
   const blockEl = document.createElement('div');
   // build image block nested div structure
   blockEl.classList.add(blockName);
+  // eslint-disable-next-line no-console
+  console.log('table', table);
   table.forEach((row) => {
     const rowEl = document.createElement('row-brick');
+    rowEl.setAttribute('block-name', '');
+    // rowEl.setAttribute('brick', '');
     row.forEach((col) => {
       const colEl = document.createElement('column-brick');
+      colEl.setAttribute('block-name', '');
+      // colEl.setAttribute('brick', '');
       const vals = col.elems ? col.elems : [col];
       vals.forEach((val) => {
         if (val) {
@@ -646,7 +653,7 @@ async function loadBlock(block) {
  */
 async function loadBlocks(main) {
   updateSectionsStatus(main);
-  const blocks = [...main.querySelectorAll('[brick]')];
+  const blocks = [...main.querySelectorAll('[block-name]')];
   for (let i = 0; i < blocks.length; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await loadBlock(blocks[i]);
@@ -661,7 +668,7 @@ async function loadBlocks(main) {
  * @param {DOMStringMap} dataset Set of custom attributes
  * @param {String[]} classes Applied CSS classes
  */
-function buildBrick(name, innerHTML, dataset, classes) {
+export function buildBrick(name, innerHTML, dataset, classes) {
   const excludedAttrs = ['name'];
   const excludedClasses = ['block', name];
 
@@ -677,7 +684,7 @@ function buildBrick(name, innerHTML, dataset, classes) {
       brick.setAttribute(attrName, dataset[attrKey]);
     }
   }
-  brick.setAttribute('brick', '');
+  brick.setAttribute('block-name', name);
   return brick;
 }
 
@@ -688,6 +695,7 @@ function buildBrick(name, innerHTML, dataset, classes) {
 function translateBlock(block) {
   const blockName = block.classList[0];
   if (blockName) {
+    // eslint-disable-next-line no-console
     console.log('in_block', block);
     const { dataset, classList, innerHTML } = block;
     classList.add('block');
@@ -695,6 +703,7 @@ function translateBlock(block) {
     dataset.blockStatus = 'initialized';
 
     const brick = buildBrick(blockName, innerHTML, dataset, [...classList]);
+    // eslint-disable-next-line no-console
     console.log('out_brick', brick);
     block.replaceWith(brick);
     return brick;
@@ -706,8 +715,45 @@ function translateBlock(block) {
  * Decorates all blocks in a container element.
  * @param {Element} main The container element
  */
-function decorateBlocks(main) {
+// eslint-disable-next-line no-unused-vars,no-underscore-dangle
+function _decorateBlocks(main) {
   main.querySelectorAll('section > wrapper-brick > div').forEach(translateBlock);
+}
+
+/**
+ * Decorates all blocks in a container element by turning them into custom elements.
+ * @param {Element} $main The container element
+ */
+function decorateBlocks($main) {
+  Array.from(
+    $main.querySelectorAll('section > wrapper-brick > div[class]'),
+  ).forEach(($block) => {
+    const blockName = $block.className;
+    // $block.classList.add('block');
+    $block.setAttribute('data-block-name', blockName);
+    const rows = Array.from($block.querySelectorAll(':scope > div'));
+    const customEl = rows.reduce(
+      (cel, row) => {
+        const divs = Array.from(row.querySelectorAll(':scope > div'));
+        const name = divs.length === 1 ? 'value' : divs[0].textContent.toLowerCase();
+        const textVal = row.querySelector(':scope > div:last-child').innerText;
+        const innerHTML = row.querySelector(':scope > div:last-child > *')
+              && row.querySelector(':scope > div:last-child').innerHTML;
+        if (!innerHTML && rows.length === 1) {
+          cel.setAttribute(name, textVal);
+        } else {
+          const valEl = document.createElement(`${name}-brick`);
+          valEl.innerHTML = innerHTML || textVal;
+          cel.appendChild(valEl);
+        }
+        return cel;
+      },
+      document.createElement(`${blockName}-brick`),
+    );
+    customEl.setAttribute('block-name', blockName);
+    // customEl.setAttribute('brick', '');
+    $block.parentElement.replaceChild(customEl, $block);
+  });
 }
 
 /**
@@ -741,7 +787,7 @@ async function loadFooter(footer) {
  * @param {Array} lcpBlocks Array of blocks
  */
 async function waitForLCP(lcpBlocks) {
-  const block = document.querySelector('[brick]');
+  const block = document.querySelector('[block-name]');
   const hasLCPBlock = block && lcpBlocks.includes(getBlockMetadata(block).blockName);
   if (hasLCPBlock) await loadBlock(block);
 
